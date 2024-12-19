@@ -3,6 +3,7 @@ import math
 import random
 from collections import defaultdict
 import streamlit as st
+import openpyxl
 
 # Function to create teams with balanced ratios
 def create_balanced_teams(data):
