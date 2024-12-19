@@ -45,7 +45,7 @@ def create_balanced_teams(players, num_teams):
 
 # Streamlit App
 st.title("Team Assignment App")
-st.write("Enter player names and positions in the format `Name - Position` (e.g., `Tony - ATT`, `Mayo - DEF`).")
+st.write("Enter player names and positions in the format `Name - Position` (e.g., `Hush - DEF`, `Mayo - DEF`).")
 
 # Text input for player names and positions
 input_data = st.text_area("Enter player data (e.g., `Tony - ATT`):")
