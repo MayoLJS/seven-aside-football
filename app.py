@@ -3,41 +3,40 @@ import math
 import random
 from collections import defaultdict
 import streamlit as st
-import openpyxl
 
 # Function to create teams with balanced ratios
-def create_balanced_teams(data):
+def create_balanced_teams(players, num_teams):
     RATIO = {'ATT': 2, 'MID': 3, 'DEF': 2}
     TOTAL_RATIO = sum(RATIO.values())
     MAX_TEAM_SIZE = 7
 
-    position_counts = data['Position'].value_counts().to_dict()
-    total_players = len(data)
+    # Ensure there are enough players to form teams
+    position_counts = {pos: len([p for p in players if p[1] == pos]) for pos in RATIO}
+    total_players = len(players)
+    
     min_teams = max(1, math.ceil(total_players / MAX_TEAM_SIZE))
-    max_possible_teams = min(position_counts[pos] // RATIO[pos] for pos in RATIO)
-    num_teams = min(min_teams, max_possible_teams)
-
+    num_teams = min(num_teams, min_teams)
+    
     team_size = total_players // num_teams
     extra_players = total_players % num_teams
 
-    shuffled_data = data.sample(frac=1, random_state=random.randint(1, 1000)).reset_index(drop=True)
+    # Shuffle the players for random distribution
+    random.shuffle(players)
 
-    players_by_position = {
-        pos: shuffled_data[shuffled_data['Position'] == pos]['Name'].tolist()
-        for pos in RATIO
-    }
+    players_by_position = {pos: [p for p in players if p[1] == pos] for pos in RATIO}
 
     teams = defaultdict(list)
     for team_idx in range(1, num_teams + 1):
         for pos, count in RATIO.items():
             for _ in range(math.floor(count / TOTAL_RATIO * team_size)):
                 if players_by_position[pos]:
-                    teams[team_idx].append((players_by_position[pos].pop(), pos))
+                    teams[team_idx].append(players_by_position[pos].pop(0))
 
     remaining_players = []
-    for pos, players in players_by_position.items():
-        remaining_players.extend([(player, pos) for player in players])
+    for pos, players_list in players_by_position.items():
+        remaining_players.extend([(player, pos) for player in players_list])
 
+    # Distribute remaining players
     for idx, player in enumerate(remaining_players):
         team_idx = (idx % num_teams) + 1
         teams[team_idx].append(player)
@@ -46,18 +45,34 @@ def create_balanced_teams(data):
 
 # Streamlit App
 st.title("Team Assignment App")
-st.write("Upload a spreadsheet with columns `Name` and `Position` (ATT, MID, DEF) to create balanced teams.")
+st.write("Enter player names and positions in the format `Name - Position` (e.g., `Tony - ATT`, `Mayo - DEF`).")
 
-uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
-if uploaded_file:
+# Text input for player names and positions
+input_data = st.text_area("Enter player data (e.g., `Tony - ATT`):")
+
+# Input for number of teams
+num_teams = st.number_input("Enter the number of teams you want to create:", min_value=1, step=1)
+
+if input_data:
     try:
-        # Load the uploaded file
-        data = pd.read_excel(uploaded_file)
-        if 'Name' not in data.columns or 'Position' not in data.columns:
-            st.error("Spreadsheet must contain `Name` and `Position` columns.")
-        else:
+        # Parse the input data
+        players = []
+        lines = input_data.splitlines()
+        for line in lines:
+            parts = line.split('-')
+            if len(parts) == 2:
+                name = parts[0].strip()
+                position = parts[1].strip().upper()
+                if position in ['ATT', 'MID', 'DEF']:
+                    players.append((name, position))
+                else:
+                    st.warning(f"Invalid position '{position}' for player '{name}'. Only 'ATT', 'MID', and 'DEF' are allowed.")
+                    players = []  # Reset players list if any invalid position is found
+                    break
+
+        if players:
             # Create teams
-            teams = create_balanced_teams(data)
+            teams = create_balanced_teams(players, num_teams)
 
             # Display the teams in the app
             for team_idx, members in teams.items():
